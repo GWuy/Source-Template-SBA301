@@ -10,6 +10,15 @@
     border: 1px solid #999;
     background: #ffffff;
     box-sizing: border-box;
+
+    /* Flexbox để Footer luôn nằm dưới cùng */
+    display: flex;
+    flex-direction: column;
+}
+
+/* Main content chiếm hết khoảng trống → đẩy Footer xuống đáy */
+.app-body main {
+    flex-grow: 1;
 }
 
 /* ========== RESPONSIVE ========== */

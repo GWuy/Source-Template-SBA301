@@ -216,6 +216,15 @@ src/
   border: 1px solid #999;
   background: #ffffff;
   box-sizing: border-box;
+
+  /* Flexbox để Footer luôn nằm dưới cùng */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Main content chiếm hết khoảng trống → đẩy Footer xuống đáy */
+.app-body main {
+  flex-grow: 1;
 }
 
 /* ========== RESPONSIVE ========== */
@@ -802,7 +811,7 @@ function EntityList() {
                       href="#"
                       onClick={(e) => {
                         e.preventDefault();
-                        handleView(entity.id || entity.entityId);
+                        navigate(`/detail/${restaurant.restaurantId}`);
                       }}
                     >
                       View
@@ -1544,7 +1553,9 @@ function DetailRestaurant() {
               Category:
             </Col>
             <Col md={8} className="text-start">
-              {restaurant.categoryName || restaurant.category?.categoryName || ""}
+              {restaurant.categoryName ||
+                restaurant.category?.categoryName ||
+                ""}
             </Col>
           </Row>
 
@@ -1659,21 +1670,239 @@ const navigate = useNavigate();
   }}
 >
   View
-</a>
+</a>;
 
 // Cách 2: Dùng <Link> (React Router)
 import { Link } from "react-router-dom";
 
-<Link to={`/restaurants/${entity.id || entity.entityId}`}>
-  View
-</Link>
+<Link to={`/restaurants/${entity.id || entity.entityId}`}>View</Link>;
 ```
 
 > **📌 Lưu ý:**
+>
 > - DetailEntity **KHÔNG** tạo Header, Footer, hay AppLayout
 > - Nội dung chỉ render bên trong `<Outlet />` → layout giữ nguyên
 > - Nút "Quay Lai" dùng `navigate(-1)` → quay về trang trước, không hardcode URL
 > - Format ngày dùng `yyyy-MM-dd` (thủ công, không dùng thư viện ngoài)
+
+---
+
+### 5.3 🗑️ DeleteConfirmation Page (Trang xác nhận xóa — Standalone Page)
+
+> **Mục đích:** Trang xác nhận xóa riêng biệt (không dùng Modal), render bên trong `<Outlet />` của AppLayout.
+> **Khi nào dùng:** Khi đề yêu cầu chuyển sang trang mới để xác nhận xóa thay vì dùng popup Modal.
+
+#### Cấu trúc thư mục
+
+```
+src/
+├── pages/
+│   └── DeleteEntity.jsx    ← Trang xác nhận xóa
+```
+
+#### `src/pages/DeleteEntity.jsx`
+
+> **Hướng dẫn:**
+>
+> 1. Copy file này
+> 2. Đổi `Entity` → tên thực thể (vd: `Restaurant`, `Book`)
+> 3. Đổi `entityName` → field hiển thị tên (vd: `restaurantName`, `bookTitle`)
+> 4. Đổi service import + method name
+
+```jsx
+import { Button, Col, Container, Row } from "react-bootstrap";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { entityService } from "../services/EntityService.js"; // ← Đổi service
+
+function DeleteEntity() {
+  const navigate = useNavigate();
+  const { id } = useParams(); // ← Lấy id từ URL
+
+  const [entity, setEntity] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // ========== FETCH ENTITY BY ID ==========
+  useEffect(() => {
+    const fetchEntity = async () => {
+      try {
+        const response = await entityService.getEntityById(id);
+        setEntity(response.data);
+      } catch (error) {
+        console.error("Error fetching entity:", error);
+        setEntity(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchEntity();
+  }, [id]);
+
+  // ========== CONFIRM DELETE ==========
+  const handleConfirmDelete = async () => {
+    try {
+      await entityService.deleteEntity(id);
+      alert("Deleted successfully!");
+      navigate("/"); // ← Quay về trang list sau khi xóa
+    } catch (error) {
+      console.error("Error deleting:", error);
+      alert("Failed to delete");
+    }
+  };
+
+  // ========== LOADING STATE ==========
+  if (loading) {
+    return (
+      <Container className="mt-5 text-center">
+        <p>Loading...</p>
+      </Container>
+    );
+  }
+
+  // ========== NOT FOUND STATE ==========
+  if (!entity) {
+    return (
+      <Container className="mt-5 text-center">
+        <h4>Entity not found</h4>
+        <Button
+          variant="outline-primary"
+          className="mt-3 px-4 fw-bold"
+          onClick={() => navigate(-1)}
+        >
+          Quay Lai
+        </Button>
+      </Container>
+    );
+  }
+
+  // ========== RENDER ==========
+  return (
+    <Container>
+      {/* ===== TITLE ===== */}
+      <Row className="mt-5 mb-4">
+        <Col className="text-center">
+          <h4 className="fw-bold">Confirmation</h4>
+        </Col>
+      </Row>
+
+      {/* ===== CONFIRMATION MESSAGE ===== */}
+      <Row className="mb-4">
+        <Col className="text-center">
+          <p className="fs-5">
+            Are you sure you want to delete "{entity.entityName}"?
+            {/* ← Đổi entity.entityName → entity.restaurantName, entity.bookTitle, ... */}
+          </p>
+        </Col>
+      </Row>
+
+      {/* ===== BUTTONS: Yes + Close ===== */}
+      <Row>
+        <Col className="text-center">
+          <div className="d-flex justify-content-center gap-4">
+            <Button
+              variant="outline-primary"
+              className="px-5 fw-bold"
+              onClick={handleConfirmDelete}
+            >
+              Yes
+            </Button>
+            <Button
+              variant="outline-secondary"
+              className="px-5 fw-bold"
+              onClick={() => navigate(-1)}
+            >
+              Close
+            </Button>
+          </div>
+        </Col>
+      </Row>
+    </Container>
+  );
+}
+
+export default DeleteEntity;
+```
+
+---
+
+### 🔗 Cách kết hợp DeleteEntity với AppLayout (Nested Routes)
+
+> **⚠️ Quan trọng:** DeleteEntity render bên trong `<Outlet />` của AppLayout.
+> Chỉ cần thêm `<Route>` con bên trong `<Route element={<AppLayout />}>`.
+
+#### `src/App.jsx` — Thêm route `/delete/:id`
+
+```jsx
+import "./App.css";
+import { Routes, Route } from "react-router-dom";
+import AppLayout from "./layouts/AppLayout.jsx";
+import EntityList from "./pages/EntityList.jsx";
+import CreateEntity from "./pages/CreateEntity.jsx";
+import DetailEntity from "./pages/DetailEntity.jsx";
+import DeleteEntity from "./pages/DeleteEntity.jsx"; // ← Import page delete
+
+function App() {
+  return (
+    <Routes>
+      {/* AppLayout là route cha — Header + Footer tự động render */}
+      <Route element={<AppLayout />}>
+        <Route path="/" element={<EntityList />} />
+        <Route path="/create" element={<CreateEntity />} />
+        <Route path="/detail/:id" element={<DetailEntity />} />
+        <Route path="/delete/:id" element={<DeleteEntity />} />
+        {/* ↑ Thêm route delete — :id sẽ được useParams() lấy ra */}
+      </Route>
+    </Routes>
+  );
+}
+
+export default App;
+```
+
+#### Luồng hoạt động với DeleteEntity
+
+```
+<AppLayout>                         ← Route cha (không có path)
+  ├── <Header />                    ← Luôn hiển thị
+  ├── <main>
+  │     └── <Outlet />              ← React Router inject page con vào đây
+  │           ├── path="/"               → <EntityList />
+  │           ├── path="/create"         → <CreateEntity />
+  │           ├── path="/detail/:id"     → <DetailEntity />
+  │           └── path="/delete/:id"     → <DeleteEntity />
+  └── <Footer />                    ← Luôn hiển thị
+```
+
+#### Cách navigate tới DeleteEntity từ List page
+
+> Trong `EntityList.jsx`, thay đổi link "Delete" để navigate tới trang xác nhận:
+
+```jsx
+// Cách 1: Dùng navigate()
+const navigate = useNavigate();
+
+<a
+  href="#"
+  onClick={(e) => {
+    e.preventDefault();
+    navigate(`/delete/${entity.id || entity.entityId}`);
+  }}
+>
+  Delete
+</a>;
+
+// Cách 2: Dùng <Link> (React Router)
+import { Link } from "react-router-dom";
+
+<Link to={`/delete/${entity.id || entity.entityId}`}>Delete</Link>;
+```
+
+> **📌 Lưu ý:**
+>
+> - DeleteEntity **KHÔNG** tạo Header, Footer, hay AppLayout
+> - Nội dung chỉ render bên trong `<Outlet />` → layout giữ nguyên
+> - Nút "Close" dùng `navigate(-1)` → quay về trang trước
+> - Sau khi xóa thành công → `navigate("/")` quay về trang list
 
 ---
 
