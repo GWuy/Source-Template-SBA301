@@ -1,0 +1,30 @@
+/* ========== AppLayout.css ========== */
+
+/* Container bọc toàn bộ body (Header + main + Footer) */
+.app-body {
+    width: 1150px;
+    max-width: 1200px;
+    min-height: 650px;
+    margin: 20px auto;
+    padding: 20px;
+    border: 1px solid #999;
+    background: #ffffff;
+    box-sizing: border-box;
+}
+
+/* ========== RESPONSIVE ========== */
+
+/* Tablet */
+@media (max-width: 1200px) {
+    .app-body {
+        width: 95%;
+    }
+}
+
+/* Mobile */
+@media (max-width: 576px) {
+    .app-body {
+        width: 100%;
+        padding: 12px;
+    }
+}
