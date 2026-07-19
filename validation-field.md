@@ -254,6 +254,68 @@ if (formData.price && !/^\d+(\.\d{1,2})?$/.test(formData.price)) {
 }
 ```
 
+### 21. Date Format — yyyy/MM/dd (dấu `/` hoặc `-`)
+
+```js
+// ===== DATE FORMAT: yyyy/MM/dd hoặc yyyy-MM-dd =====
+if (formData.dateField && !/^\d{4}[\/\-](0[1-9]|1[0-2])[\/\-](0[1-9]|[12]\d|3[01])$/.test(formData.dateField)) {
+    newErrors.dateField = "Date must be in yyyy/MM/dd or yyyy-MM-dd format";
+}
+```
+
+### 22. Date Format — yyyy/dd/MM (dấu `/` hoặc `-`)
+
+```js
+// ===== DATE FORMAT: yyyy/dd/MM hoặc yyyy-dd-MM =====
+if (formData.dateField && !/^\d{4}[\/\-](0[1-9]|[12]\d|3[01])[\/\-](0[1-9]|1[0-2])$/.test(formData.dateField)) {
+    newErrors.dateField = "Date must be in yyyy/dd/MM or yyyy-dd-MM format";
+}
+```
+
+### 23. Date Format — MM/dd/yyyy (dấu `/` hoặc `-`)
+
+```js
+// ===== DATE FORMAT: MM/dd/yyyy hoặc MM-dd-yyyy =====
+if (formData.dateField && !/^(0[1-9]|1[0-2])[\/\-](0[1-9]|[12]\d|3[01])[\/\-]\d{4}$/.test(formData.dateField)) {
+    newErrors.dateField = "Date must be in MM/dd/yyyy or MM-dd-yyyy format";
+}
+```
+
+### 24. Date Format — dd/MM/yyyy (dấu `/` hoặc `-`)
+
+```js
+// ===== DATE FORMAT: dd/MM/yyyy hoặc dd-MM-yyyy =====
+if (formData.dateField && !/^(0[1-9]|[12]\d|3[01])[\/\-](0[1-9]|1[0-2])[\/\-]\d{4}$/.test(formData.dateField)) {
+    newErrors.dateField = "Date must be in dd/MM/yyyy or dd-MM-yyyy format";
+}
+```
+
+### 25. Parse Date String — Chuyển chuỗi ngày thành Date object
+
+> **Dùng khi:** Đề bài yêu cầu nhập ngày dạng text (không dùng `<input type="date">`), cần parse để so sánh hoặc lưu DB.
+
+```js
+// ===== PARSE DATE: Hỗ trợ cả / và - =====
+
+// Parse yyyy/MM/dd hoặc yyyy-MM-dd
+const parseYMD = (str) => {
+    const [y, m, d] = str.split(/[\/\-]/);
+    return new Date(y, m - 1, d);
+};
+
+// Parse dd/MM/yyyy hoặc dd-MM-yyyy
+const parseDMY = (str) => {
+    const [d, m, y] = str.split(/[\/\-]/);
+    return new Date(y, m - 1, d);
+};
+
+// Parse MM/dd/yyyy hoặc MM-dd-yyyy
+const parseMDY = (str) => {
+    const [m, d, y] = str.split(/[\/\-]/);
+    return new Date(y, m - 1, d);
+};
+```
+
 ---
 
 ## ⚡ Ví dụ Full validate() cho PE
@@ -311,6 +373,10 @@ const validate = () => {
 | Date not future | `new Date(v) > new Date()` | Birthday |
 | Date not past | `new Date(v) < new Date()` | Booking date |
 | Date compare | `new Date(start) >= new Date(end)` | Date range |
+| Date yyyy/MM/dd | `/^\d{4}[\/\-](0[1-9]\|1[0-2])[\/\-](0[1-9]\|[12]\d\|3[01])$/` | Date text input |
+| Date yyyy/dd/MM | `/^\d{4}[\/\-](0[1-9]\|[12]\d\|3[01])[\/\-](0[1-9]\|1[0-2])$/` | Date text input |
+| Date MM/dd/yyyy | `/^(0[1-9]\|1[0-2])[\/\-](0[1-9]\|[12]\d\|3[01])[\/\-]\d{4}$/` | Date text input |
+| Date dd/MM/yyyy | `/^(0[1-9]\|[12]\d\|3[01])[\/\-](0[1-9]\|1[0-2])[\/\-]\d{4}$/` | Date text input |
 | URL | `/^https?:\/\/.+/` | Website link |
 | No special chars | `/^[a-zA-Z0-9\s]+$/` | Username |
 | Alphabetic | `/^[a-zA-Z\s]+$/` | Name field |
