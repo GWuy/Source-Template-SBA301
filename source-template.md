@@ -1044,6 +1044,16 @@ export default EntityList;
 > 2. Đổi `Entity` → tên thực thể (vd: `Shoe`, `Book`)
 > 3. Đổi fields trong `formData` + JSX + `validate()`
 > 4. Đổi service import
+> 5. **Date fields:** Xem hướng dẫn bên dưới để chọn đúng cách dùng `type="date"` hay `type="text"`
+
+> **⚠️ Lưu ý quan trọng về Date:**
+>
+> - **`type="date"` (HTML date picker):** Trình duyệt tự trả về `yyyy-MM-dd` → dùng `new Date()` trực tiếp được, **KHÔNG cần** parse function.
+> - **`type="text"` (nhập tay):** Người dùng nhập dạng tùy ý (dd/MM/yyyy, MM-dd-yyyy, ...) → **BẮT BUỘC** dùng parse function để so sánh, và format function trước khi gửi API.
+> - Mỗi parse/format function chỉ hỗ trợ **MỘT separator** duy nhất (`/` hoặc `-`). **KHÔNG** dùng `split(/[\/\-]/)`.
+> - Xem chi tiết tại `validation-field.md` mục 25, 26, 27.
+
+#### Cách A: Dùng `type="date"` (HTML date picker) — Đơn giản nhất
 
 ```jsx
 import {Button, Col, Container, Form, Row} from "react-bootstrap";
@@ -1062,8 +1072,8 @@ function CreateEntity() {
         entityName: "",
         price: "",
         field3: "",
-        date1: "",
-        date2: "",
+        date1: "",      // type="date" → browser trả về yyyy-MM-dd
+        date2: "",      // type="date" → browser trả về yyyy-MM-dd
         categoryId: "",
     });
 
@@ -1083,7 +1093,7 @@ function CreateEntity() {
         if (errors[name]) setErrors(prev => ({...prev, [name]: ""}));
     };
 
-    // ========== VALIDATION — Đổi rules theo đề ==========
+    // ========== VALIDATION ==========
     const validate = () => {
         const newErrors = {};
 
@@ -1102,6 +1112,7 @@ function CreateEntity() {
         }
 
         // Date comparison: date1 < date2
+        // ✅ type="date" → browser trả về yyyy-MM-dd → new Date() parse đúng
         if (formData.date1 && formData.date2) {
             if (new Date(formData.date1) >= new Date(formData.date2)) {
                 newErrors.date1 = "Date 1 must be before Date 2";
@@ -1118,6 +1129,7 @@ function CreateEntity() {
     };
 
     // Handle Save
+    // ✅ type="date" → value đã là yyyy-MM-dd → gửi thẳng, KHÔNG cần format
     const handleSave = async () => {
         if (!validate()) return;
         try {
@@ -1189,7 +1201,7 @@ function CreateEntity() {
                         </Col>
                     </Form.Group>
 
-                    {/* ===== 2 Date Fields cùng 1 row ===== */}
+                    {/* ===== 2 Date Fields cùng 1 row (type="date") ===== */}
                     <Form.Group as={Row} className="mb-3 align-items-center">
                         <Form.Label column md={4} className="text-end fw-semibold">
                             Date 1             {/* ← Đổi label */}
@@ -1266,6 +1278,309 @@ function CreateEntity() {
 
 export default CreateEntity;
 ```
+
+#### Cách B: Dùng `type="text"` (nhập tay) — Khi đề bài yêu cầu format cụ thể
+
+> **Dùng khi:** Đề bài yêu cầu nhập ngày dạng text (vd: `dd/MM/yyyy`, `yyyy-MM-dd`, `MM/dd/yyyy`, ...).
+> **BẮT BUỘC phải:**
+>
+> 1. Validate format bằng regex (xem `validation-field.md` mục 21-24)
+> 2. Parse date bằng parse function để so sánh (xem `validation-field.md` mục 25)
+> 3. Format date bằng format function trước khi gửi API (xem `validation-field.md` mục 26-27)
+> 4. Mỗi function chỉ hỗ trợ **MỘT separator** (`/` hoặc `-`). **KHÔNG** dùng `split(/[\/\-]/)`.
+
+```jsx
+import {Button, Col, Container, Form, Row} from "react-bootstrap";
+import {useState, useEffect} from "react";
+import {useNavigate} from "react-router-dom";
+import {categoryService} from "../services/CategoryService.js";
+import {entityService} from "../services/EntityService.js";  // ← Đổi service
+
+function CreateEntity() {
+
+    const navigate = useNavigate();
+    const [categories, setCategories] = useState([]);
+
+    // Form data — ← Đổi fields theo entity
+    const [formData, setFormData] = useState({
+        entityName: "",
+        price: "",
+        field3: "",
+        date1: "",      // type="text" → user nhập tay, vd: "25/12/2025"
+        date2: "",      // type="text" → user nhập tay, vd: "30/12/2025"
+        categoryId: "",
+    });
+
+    const [errors, setErrors] = useState({});
+
+    // ========== PARSE DATE FUNCTIONS ==========
+    // ⚠️ Chọn đúng function theo format đề bài yêu cầu!
+    // ⚠️ Mỗi function chỉ hỗ trợ 1 separator. KHÔNG dùng split(/[\/\-]/)
+
+    // Parse dd/MM/yyyy (chỉ dấu /)
+    const parseDMYSlash = (str) => {
+        const [d, m, y] = str.split("/");
+        return new Date(y, m - 1, d);
+    };
+
+    // ========== FORMAT DATE FUNCTIONS ==========
+    // Chuyển về yyyy-MM-dd trước khi gửi API
+
+    // dd/MM/yyyy -> yyyy-MM-dd (chỉ dấu /)
+    const formatDMYSlash = (str) => {
+        if (!str) return "";
+        const parts = str.split("/");
+        if (parts.length !== 3) throw new Error("Invalid format, expected dd/MM/yyyy");
+        const [d, m, y] = parts;
+        return `${y}-${m}-${d}`;
+    };
+
+    // Fetch categories cho dropdown
+    useEffect(() => {
+        categoryService.getAllCategoryList()
+            .then(res => setCategories(res.data || []))
+            .catch(() => setCategories([]));
+    }, []);
+
+    // Handle input change + clear error
+    const handleChange = (e) => {
+        const {name, value} = e.target;
+        setFormData(prev => ({...prev, [name]: value}));
+        if (errors[name]) setErrors(prev => ({...prev, [name]: ""}));
+    };
+
+    // ========== VALIDATION ==========
+    const validate = () => {
+        const newErrors = {};
+
+        // Required + Max Length 100
+        if (!formData.entityName.trim()) {
+            newErrors.entityName = "Name is required";
+        } else if (formData.entityName.trim().length > 100) {
+            newErrors.entityName = "Name must not exceed 100 characters";
+        }
+
+        // Positive number
+        if (!formData.price) {
+            newErrors.price = "Price is required";
+        } else if (isNaN(formData.price) || Number(formData.price) <= 0) {
+            newErrors.price = "Price must be a positive number";
+        }
+
+        // ===== DATE FORMAT VALIDATION (dd/MM/yyyy, chỉ dấu /) =====
+        // ⚠️ Đổi regex theo format đề bài! Xem validation-field.md mục 21-24
+        const dateRegex = /^(0[1-9]|[12]\d|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
+
+        if (!formData.date1) {
+            newErrors.date1 = "Date 1 is required";
+        } else if (!dateRegex.test(formData.date1)) {
+            newErrors.date1 = "Date 1 must be in dd/MM/yyyy format";
+        }
+
+        if (!formData.date2) {
+            newErrors.date2 = "Date 2 is required";
+        } else if (!dateRegex.test(formData.date2)) {
+            newErrors.date2 = "Date 2 must be in dd/MM/yyyy format";
+        }
+
+        // ===== DATE COMPARISON: date1 < date2 =====
+        // ⚠️ Dùng parse function thay vì new Date() trực tiếp!
+        // ⚠️ Chỉ so sánh khi cả 2 date đều PASS format validation
+        if (
+            formData.date1 && formData.date2 &&
+            !newErrors.date1 && !newErrors.date2
+        ) {
+            if (parseDMYSlash(formData.date1) >= parseDMYSlash(formData.date2)) {
+                newErrors.date1 = "Date 1 must be before Date 2";
+            }
+        }
+
+        // Required dropdown
+        if (!formData.categoryId) {
+            newErrors.categoryId = "Category is required";
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    // ========== HANDLE SAVE ==========
+    // ⚠️ Format date về yyyy-MM-dd trước khi gửi API!
+    const handleSave = async () => {
+        if (!validate()) return;
+        try {
+            const data = {
+                ...formData,
+                date1: formatDMYSlash(formData.date1),  // dd/MM/yyyy → yyyy-MM-dd
+                date2: formatDMYSlash(formData.date2),  // dd/MM/yyyy → yyyy-MM-dd
+            };
+            await entityService.createEntity(data);  // ← Đổi method name
+            alert("Created successfully!");
+            navigate("/");
+        } catch (error) {
+            console.error("Error creating:", error);
+            alert("Failed to create");
+        }
+    };
+
+    return (
+        <Container>
+            <Row className="mb-4 mt-5">
+                <Col md={{span: 8, offset: 2}}>
+
+                    {/* ===== Text Field ===== */}
+                    <Form.Group as={Row} className="mb-3 align-items-center">
+                        <Form.Label column md={4} className="text-end fw-semibold">
+                            Entity name:           {/* ← Đổi label */}
+                        </Form.Label>
+                        <Col md={8}>
+                            <Form.Control
+                                type="text"
+                                name="entityName"  {/* ← Đổi name */}
+                                value={formData.entityName}
+                                onChange={handleChange}
+                                isInvalid={!!errors.entityName}
+                                maxLength={100}
+                            />
+                            <Form.Control.Feedback type="invalid">
+                                {errors.entityName}
+                            </Form.Control.Feedback>
+                        </Col>
+                    </Form.Group>
+
+                    {/* ===== Number Field (short width) ===== */}
+                    <Form.Group as={Row} className="mb-3 align-items-center">
+                        <Form.Label column md={4} className="text-end fw-semibold">
+                            Price:
+                        </Form.Label>
+                        <Col md={3}>
+                            <Form.Control
+                                type="number"
+                                name="price"
+                                value={formData.price}
+                                onChange={handleChange}
+                                isInvalid={!!errors.price}
+                            />
+                            <Form.Control.Feedback type="invalid">
+                                {errors.price}
+                            </Form.Control.Feedback>
+                        </Col>
+                    </Form.Group>
+
+                    {/* ===== Text Field (full width) ===== */}
+                    <Form.Group as={Row} className="mb-3 align-items-center">
+                        <Form.Label column md={4} className="text-end fw-semibold">
+                            Field3:                {/* ← Đổi label */}
+                        </Form.Label>
+                        <Col md={8}>
+                            <Form.Control
+                                type="text"
+                                name="field3"
+                                value={formData.field3}
+                                onChange={handleChange}
+                            />
+                        </Col>
+                    </Form.Group>
+
+                    {/* ===== 2 Date Fields cùng 1 row (type="text" — nhập tay) ===== */}
+                    {/* ⚠️ placeholder ghi rõ format để user biết nhập đúng */}
+                    <Form.Group as={Row} className="mb-3 align-items-center">
+                        <Form.Label column md={4} className="text-end fw-semibold">
+                            Date 1:            {/* ← Đổi label */}
+                        </Form.Label>
+                        <Col md={3}>
+                            <Form.Control
+                                type="text"
+                                name="date1"
+                                value={formData.date1}
+                                onChange={handleChange}
+                                isInvalid={!!errors.date1}
+                                placeholder="dd/MM/yyyy"
+                            />
+                            <Form.Control.Feedback type="invalid">
+                                {errors.date1}
+                            </Form.Control.Feedback>
+                        </Col>
+                        <Form.Label column md={2} className="text-end fw-semibold">
+                            Date 2:            {/* ← Đổi label */}
+                        </Form.Label>
+                        <Col md={3}>
+                            <Form.Control
+                                type="text"
+                                name="date2"
+                                value={formData.date2}
+                                onChange={handleChange}
+                                isInvalid={!!errors.date2}
+                                placeholder="dd/MM/yyyy"
+                            />
+                            <Form.Control.Feedback type="invalid">
+                                {errors.date2}
+                            </Form.Control.Feedback>
+                        </Col>
+                    </Form.Group>
+
+                    {/* ===== Dropdown ===== */}
+                    <Form.Group as={Row} className="mb-4 align-items-center">
+                        <Form.Label column md={4} className="text-end fw-semibold">
+                            Category:
+                        </Form.Label>
+                        <Col md={4}>
+                            <Form.Select
+                                name="categoryId"
+                                value={formData.categoryId}
+                                onChange={handleChange}
+                                isInvalid={!!errors.categoryId}
+                            >
+                                <option value="">-- Select --</option>
+                                {categories.map((cat, i) => (
+                                    <option key={cat.id || cat.categoryId || i} value={cat.id || cat.categoryId}>
+                                        {cat.categoryName}
+                                    </option>
+                                ))}
+                            </Form.Select>
+                            <Form.Control.Feedback type="invalid">
+                                {errors.categoryId}
+                            </Form.Control.Feedback>
+                        </Col>
+                    </Form.Group>
+
+                    {/* ===== Buttons ===== */}
+                    <Row>
+                        <Col md={{span: 8, offset: 4}}>
+                            <div className="d-flex gap-3">
+                                <Button variant="outline-dark" className="px-4 fw-bold" onClick={handleSave}>
+                                    Save
+                                </Button>
+                                <Button variant="primary" className="px-4 fw-bold" onClick={() => navigate("/")}>
+                                    Back
+                                </Button>
+                            </div>
+                        </Col>
+                    </Row>
+
+                </Col>
+            </Row>
+        </Container>
+    );
+}
+
+export default CreateEntity;
+```
+
+#### 📋 Bảng chọn nhanh Parse + Format function theo format đề bài
+
+| Format đề bài | Separator | Parse function    | Format function    | Regex (validation-field.md) |
+| ---------------- | --------- | ----------------- | ------------------ | --------------------------- |
+| `dd/MM/yyyy`   | `/`     | `parseDMYSlash` | `formatDMYSlash` | Mục 24                     |
+| `dd-MM-yyyy`   | `-`     | `parseDMYDash`  | `formatDMYDash`  | Mục 24                     |
+| `MM/dd/yyyy`   | `/`     | `parseMDYSlash` | `formatMDYSlash` | Mục 23                     |
+| `MM-dd-yyyy`   | `-`     | `parseMDYDash`  | `formatMDYDash`  | Mục 23                     |
+| `yyyy/MM/dd`   | `/`     | `parseYMDSlash` | `formatYMDSlash` | Mục 21                     |
+| `yyyy-MM-dd`   | `-`     | `parseYMDDash`  | `formatYMDDash`  | Mục 21                     |
+| `yyyy/dd/MM`   | `/`     | _(xem mục 22)_ | _(custom)_       | Mục 22                     |
+| `yyyy-dd-MM`   | `-`     | _(xem mục 22)_ | _(custom)_       | Mục 22                     |
+
+> **💡 Tip:** Copy parse + format function từ `validation-field.md` mục 25-26, chỉ copy function đúng format đề bài. Tra regex ở mục 21-24.
 
 ---
 
