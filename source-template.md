@@ -489,6 +489,7 @@ function EntityList() {
   // Pagination states
   const [currentPage, setCurrentPage] = useState(0); // 0-based (theo Spring Boot)
   const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
   const [pageSize] = useState(10); // ← Đổi số lượng item/trang nếu cần
 
   // ========== FETCH DATA ==========
@@ -506,11 +507,13 @@ function EntityList() {
         const data = response.data;
         setEntities(data.content || data || []);
         setTotalPages(data.totalPages || 0);
+        setTotalElements(data.totalElements || 0);
         setCurrentPage(data.number ?? page);
       } catch (error) {
         console.error("Error fetching entities:", error);
         setEntities([]);
         setTotalPages(0);
+        setTotalElements(0);
       }
     },
     [searchName, searchCategory, pageSize],
@@ -526,11 +529,13 @@ function EntityList() {
         const data = response.data;
         setEntities(data.content || data || []);
         setTotalPages(data.totalPages || 0);
+        setTotalElements(data.totalElements || 0);
         setCurrentPage(data.number ?? page);
       } catch (error) {
         console.error("Error fetching entities:", error);
         setEntities([]);
         setTotalPages(0);
+        setTotalElements(0);
       }
     },
     [pageSize],
@@ -565,11 +570,13 @@ function EntityList() {
       const data = response.data;
       setEntities(data.content || data || []);
       setTotalPages(data.totalPages || 0);
+      setTotalElements(data.totalElements || 0);
       setCurrentPage(data.number ?? 0);
     } catch (error) {
       console.error("Error filtering:", error);
       setEntities([]);
       setTotalPages(0);
+      setTotalElements(0);
     }
   };
 
@@ -597,11 +604,13 @@ function EntityList() {
       const data = response.data;
       setEntities(data.content || data || []);
       setTotalPages(data.totalPages || 0);
+      setTotalElements(data.totalElements || 0);
       setCurrentPage(data.number ?? 0);
     } catch (error) {
       console.error("Error filtering:", error);
       setEntities([]);
       setTotalPages(0);
+      setTotalElements(0);
     }
   };
   */
@@ -769,20 +778,23 @@ function EntityList() {
         </tbody>
       </Table>
 
-      {/* ===== PAGINATION ===== */}
-      {totalPages > 1 && (
-        <div className="d-flex justify-content-center mt-3">
-          <Pagination>
-            <Pagination.First
-              onClick={() => handlePageChange(0)}
-              disabled={currentPage === 0}
-            />
+      {/* ===== PAGINATION (Luôn hiển thị) ===== */}
+      <Row className="align-items-center mt-3">
+        <Col md={6} className="text-start">
+          <span>
+            Show {entities.length} of {totalElements} records
+          </span>
+        </Col>
+        <Col md={6} className="d-flex justify-content-end">
+          <Pagination className="mb-0">
             <Pagination.Prev
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 0}
-            />
+            >
+              Previous
+            </Pagination.Prev>
 
-            {[...Array(totalPages)].map((_, index) => (
+            {[...Array(totalPages || 1)].map((_, index) => (
               <Pagination.Item
                 key={index}
                 active={index === currentPage}
@@ -794,15 +806,13 @@ function EntityList() {
 
             <Pagination.Next
               onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages - 1}
-            />
-            <Pagination.Last
-              onClick={() => handlePageChange(totalPages - 1)}
-              disabled={currentPage === totalPages - 1}
-            />
+              disabled={currentPage >= totalPages - 1 || totalPages === 0}
+            >
+              Next
+            </Pagination.Next>
           </Pagination>
-        </div>
-      )}
+        </Col>
+      </Row>
     </Container>
   );
 }
@@ -912,7 +922,13 @@ function CreateEntity() {
             navigate("/");
         } catch (error) {
             console.error("Error creating:", error);
-            alert("Failed to create");
+            // Handle backend error: { status: 400, message: "Laptop name already exists: ..." }
+            if (error.response && error.response.data && error.response.data.message) {
+                // ← Đổi "entityName" thành field tương ứng với lỗi backend trả về
+                setErrors(prev => ({...prev, entityName: error.response.data.message}));
+            } else {
+                alert("Failed to create. Please try again.");
+            }
         }
     };
 
@@ -920,6 +936,7 @@ function CreateEntity() {
         <Container>
             <Row className="mb-4 mt-5">
                 <Col md={{span: 8, offset: 2}}>
+
 
                     {/* ===== Text Field ===== */}
                     <Form.Group as={Row} className="mb-3 align-items-center">
@@ -1193,7 +1210,13 @@ function CreateEntity() {
             navigate("/");
         } catch (error) {
             console.error("Error creating:", error);
-            alert("Failed to create");
+            // Handle backend error: { status: 400, message: "Laptop name already exists: ..." }
+            if (error.response && error.response.data && error.response.data.message) {
+                // ← Đổi "entityName" thành field tương ứng với lỗi backend trả về
+                setErrors(prev => ({...prev, entityName: error.response.data.message}));
+            } else {
+                alert("Failed to create. Please try again.");
+            }
         }
     };
 
