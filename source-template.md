@@ -204,9 +204,6 @@ src/
 ### `src/layouts/AppLayout.css`
 
 ```css
-/* ========== AppLayout.css ========== */
-
-/* Container bọc toàn bộ body (Header + main + Footer) */
 .app-body {
   width: 1150px;
   max-width: 1200px;
@@ -217,31 +214,12 @@ src/
   background: #ffffff;
   box-sizing: border-box;
 
-  /* Flexbox để Footer luôn nằm dưới cùng */
   display: flex;
   flex-direction: column;
 }
 
-/* Main content chiếm hết khoảng trống → đẩy Footer xuống đáy */
 .app-body main {
   flex-grow: 1;
-}
-
-/* ========== RESPONSIVE ========== */
-
-/* Tablet */
-@media (max-width: 1200px) {
-  .app-body {
-    width: 95%;
-  }
-}
-
-/* Mobile */
-@media (max-width: 576px) {
-  .app-body {
-    width: 100%;
-    padding: 12px;
-  }
 }
 ```
 
@@ -394,12 +372,21 @@ const getAllEntityList = () => {
 };
 
 // SEARCH / FILTER
-const searchEntities = (name, category) => {
+// Cách A: Truyền categoryId
+const searchEntities = (name, categoryId) => {
   let url = `${BASE_URL}/search?`;
   if (name) url += `name=${name}&`;
-  if (category) url += `category=${category}&`;
+  if (categoryId) url += `categoryId=${categoryId}&`;
   return api.get(url);
 };
+
+// Cách B: Truyền categoryName (nếu backend nhận tên thay vì ID)
+// const searchEntities = (name, category) => {
+//   let url = `${BASE_URL}/search?`;
+//   if (name) url += `name=${name}&`;
+//   if (category) url += `category=${category}&`;
+//   return api.get(url);
+// };
 
 // GET BY ID
 const getEntityById = (id) => {
@@ -449,7 +436,7 @@ export const categoryService = {
 
 ## 5. 📄 Pages — CRUD List + View + Delete + Create/Edit Template
 
-### `src/pages/EntityList.jsx` — **TEMPLATE CHÍNH (Full CRUD)**
+### `src/pages/EntityList.jsx` — **TEMPLATE CHÍNH (Full CRUD — No Modals)**
 
 > **Hướng dẫn sử dụng:**
 >
@@ -457,18 +444,18 @@ export const categoryService = {
 > 2. Đổi `Entity` → tên thực thể (vd: `Shoe`, `Book`, `Student`)
 > 3. Đổi các field (`entityName`, `entityId`, `price`, ...) → field thực tế
 > 4. Đổi service import
-> 5. Thêm/bớt field trong form và table
+> 5. Thêm/bớt field trong table
+> 6. **Yêu cầu:** Đã có sẵn các trang riêng: `CreateEntity`, `EntityDetail`, `DeleteEntity` (hoặc `EditEntity`)
+> 7. **Filter:** Hỗ trợ filter theo `categoryId` (truyền trực tiếp ID, không cần convert sang tên)
+> 8. **Fetch Data:** Chọn Cách A hoặc B trong `fetchEntities`:
+>    - **Cách A** (mặc định): Backend có API `GET /api/entities` → dùng `getAllEntityList()`
+>    - **Cách B** (uncomment): Backend KHÔNG có `getAllEntityList`, chỉ có `search` → dùng `searchEntities("", "")` để load tất cả
+
+> **⚠️ Lưu ý:** Template này **KHÔNG dùng Modal**. Tất cả action (View, Delete, Edit, Create) đều navigate sang trang riêng.
+> Nếu cần dùng Modal, xem phiên bản cũ hoặc tự thêm lại.
 
 ```jsx
-import {
-  Button,
-  Col,
-  Container,
-  Form,
-  Row,
-  Table,
-  Modal,
-} from "react-bootstrap";
+import { Button, Col, Container, Form, Row, Table } from "react-bootstrap";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { categoryService } from "../services/CategoryService.js";
@@ -482,29 +469,10 @@ function EntityList() {
 
   // Filter states
   const [searchName, setSearchName] = useState("");
-  const [searchCategory, setSearchCategory] = useState("");
-
-  // View Modal states
-  const [showViewModal, setShowViewModal] = useState(false);
-  const [selectedEntity, setSelectedEntity] = useState(null);
-
-  // Delete confirmation modal states
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [entityToDelete, setEntityToDelete] = useState(null);
-
-  // Create/Edit modal states
-  const [showFormModal, setShowFormModal] = useState(false);
-  const [editingEntity, setEditingEntity] = useState(null); // null = create mode
-  const [formData, setFormData] = useState({
-    entityName: "",
-    categoryId: "",
-    field3: "",
-    field4: "",
-    price: "",
-  });
-  const [formErrors, setFormErrors] = useState({});
+  const [searchCategory, setSearchCategory] = useState(""); // categoryId
 
   // ========== FETCH DATA ==========
+  // ✅ Cách A: Có API getAllEntityList() — Dùng khi backend có endpoint GET /api/entities
   const fetchEntities = useCallback(async () => {
     try {
       const response = await entityService.getAllEntityList();
@@ -514,6 +482,20 @@ function EntityList() {
       setEntities([]);
     }
   }, []);
+
+  /*
+  // ✅ Cách B: KHÔNG có API getAllEntityList() — Dùng searchEntities("", "") để load tất cả
+  // Khi backend KHÔNG có endpoint GET /api/entities, chỉ có GET /api/entities/search
+  const fetchEntities = useCallback(async () => {
+    try {
+      const response = await entityService.searchEntities("", "");
+      setEntities(response.data.content || response.data || []);
+    } catch (error) {
+      console.error("Error fetching entities:", error);
+      setEntities([]);
+    }
+  }, []);
+  */
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -530,6 +512,29 @@ function EntityList() {
   }, [fetchEntities]);
 
   // ========== FILTER / SEARCH ==========
+  // Cách A: Filter bằng categoryId (truyền ID trực tiếp)
+  // Khi KHÔNG có filter → gọi fetchEntities() (dùng getAllEntityList hoặc searchEntities tùy Cách A/B ở trên)
+  const handleFilter = async () => {
+    try {
+      if (!searchName && !searchCategory) {
+        fetchEntities();
+        return;
+      }
+
+      const response = await entityService.searchEntities(
+        searchName,
+        searchCategory, // ← Truyền categoryId trực tiếp
+      );
+      setEntities(response.data.content || response.data || []);
+    } catch (error) {
+      console.error("Error filtering:", error);
+      setEntities([]);
+    }
+  };
+
+  /*
+  // Cách B: Filter bằng categoryName (convert từ ID sang tên trước khi gọi API)
+  // Dùng khi backend search API nhận categoryName thay vì categoryId
   const handleFilter = async () => {
     try {
       let categoryName = "";
@@ -557,135 +562,7 @@ function EntityList() {
       setEntities([]);
     }
   };
-
-  // ========== DELETE ==========
-  const handleOpenDeleteModal = (entity) => {
-    setEntityToDelete(entity);
-    setShowDeleteModal(true);
-  };
-
-  const handleCloseDeleteModal = () => {
-    setShowDeleteModal(false);
-    setEntityToDelete(null);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!entityToDelete) return;
-    try {
-      await entityService.deleteEntity(
-        entityToDelete.id || entityToDelete.entityId,
-      );
-      handleCloseDeleteModal();
-      fetchEntities();
-    } catch (error) {
-      console.error("Error deleting:", error);
-      alert("Failed to delete");
-    }
-  };
-
-  // ========== VIEW DETAIL ==========
-  const handleView = async (id) => {
-    try {
-      const response = await entityService.getEntityById(id);
-      setSelectedEntity(response.data);
-      setShowViewModal(true);
-    } catch (error) {
-      console.error("Error viewing:", error);
-      alert("Failed to load details");
-    }
-  };
-
-  // ========== CREATE / EDIT ==========
-  const handleOpenCreateModal = () => {
-    setEditingEntity(null);
-    setFormData({
-      entityName: "",
-      categoryId: "",
-      field3: "",
-      field4: "",
-      price: "",
-    });
-    setFormErrors({});
-    setShowFormModal(true);
-  };
-
-  const handleOpenEditModal = async (id) => {
-    try {
-      const response = await entityService.getEntityById(id);
-      const entity = response.data;
-      setEditingEntity(entity);
-      setFormData({
-        entityName: entity.entityName || "",
-        categoryId: entity.categoryId || entity.category?.id || "",
-        field3: entity.field3 || "",
-        field4: entity.field4 || "",
-        price: entity.price || "",
-      });
-      setFormErrors({});
-      setShowFormModal(true);
-    } catch (error) {
-      alert("Failed to load entity for editing");
-    }
-  };
-
-  const handleCloseFormModal = () => {
-    setShowFormModal(false);
-    setEditingEntity(null);
-    setFormData({
-      entityName: "",
-      categoryId: "",
-      field3: "",
-      field4: "",
-      price: "",
-    });
-    setFormErrors({});
-  };
-
-  const handleFormChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    // Clear error on change
-    if (formErrors[name]) {
-      setFormErrors((prev) => ({ ...prev, [name]: "" }));
-    }
-  };
-
-  const validateForm = () => {
-    const errors = {};
-    if (!formData.entityName.trim()) errors.entityName = "Name is required";
-    if (!formData.categoryId) errors.categoryId = "Category is required";
-    if (
-      !formData.price ||
-      isNaN(formData.price) ||
-      Number(formData.price) <= 0
-    ) {
-      errors.price = "Price must be a positive number";
-    }
-    // Thêm validation khác ở đây
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleSubmitForm = async () => {
-    if (!validateForm()) return;
-    try {
-      if (editingEntity) {
-        // UPDATE
-        await entityService.updateEntity(
-          editingEntity.id || editingEntity.entityId,
-          formData,
-        );
-      } else {
-        // CREATE
-        await entityService.createEntity(formData);
-      }
-      handleCloseFormModal();
-      fetchEntities();
-    } catch (error) {
-      console.error("Error saving:", error);
-      alert("Failed to save");
-    }
-  };
+  */
 
   // ========== UTILS ==========
   const formatDate = (dateString) => {
@@ -696,340 +573,154 @@ function EntityList() {
 
   // ========== RENDER ==========
   return (
-    <>
-      <Container>
-        {/* ===== TITLE ===== */}
-        <Row className="mb-4 mt-4">
-          <Col>
-            <h3 className="fw-bold">Entity List</h3> {/* ← Đổi title */}
-          </Col>
-        </Row>
+    <Container>
+      {/* ===== TITLE ===== */}
+      <Row className="mb-4 mt-4">
+        <Col>
+          <h3 className="fw-bold">Entity List</h3> {/* ← Đổi title */}
+        </Col>
+      </Row>
 
-        {/* ===== FILTER: Category Dropdown ===== */}
-        <Row className="align-items-center mb-3">
-          <Col md={2} className="text-end">
-            <label className="fw-semibold">Category:</label>
-          </Col>
-          <Col md={3}>
-            <Form.Select
-              value={searchCategory}
-              onChange={(e) => setSearchCategory(e.target.value)}
-            >
-              <option value="">All Categories</option>
-              {categories &&
-                categories.length > 0 &&
-                categories.map((category, index) => (
-                  <option
-                    key={category.id || category.categoryId || index}
-                    value={category.id || category.categoryId}
+      {/* ===== FILTER: Category Dropdown ===== */}
+      <Row className="align-items-center mb-3">
+        <Col md={2} className="text-end">
+          <label className="fw-semibold">Category:</label>
+        </Col>
+        <Col md={3}>
+          <Form.Select
+            value={searchCategory}
+            onChange={(e) => setSearchCategory(e.target.value)}
+          >
+            <option value="">All Categories</option>
+            {categories &&
+              categories.length > 0 &&
+              categories.map((category, index) => (
+                <option
+                  key={category.id || category.categoryId || index}
+                  value={category.id || category.categoryId}
+                >
+                  {category.categoryName}
+                </option>
+              ))}
+          </Form.Select>
+        </Col>
+      </Row>
+
+      {/* ===== FILTER: Search + Buttons ===== */}
+      <Row className="align-items-center mb-5">
+        <Col md={2} className="text-end">
+          <label className="fw-semibold">Entity Name:</label>{" "}
+          {/* ← Đổi label */}
+        </Col>
+
+        <Col md={5}>
+          <Form.Control
+            type="text"
+            value={searchName}
+            onChange={(e) => setSearchName(e.target.value)}
+            placeholder="Search by name"
+          />
+        </Col>
+
+        <Col md={2}>
+          <Button
+            variant="outline-primary"
+            className="w-100 fw-bold"
+            onClick={handleFilter}
+          >
+            Filter
+          </Button>
+        </Col>
+
+        <Col md={2}>
+          <Button
+            variant="outline-primary"
+            className="w-100 fw-bold"
+            onClick={() => navigate("/create")}
+          >
+            Add New
+          </Button>
+        </Col>
+      </Row>
+
+      {/* ===== TABLE ===== */}
+      <Row>
+        <Col>
+          <h4 className="fw-bold">Entity List</h4>
+        </Col>{" "}
+        {/* ← Đổi title */}
+      </Row>
+
+      <Table bordered hover>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Name</th> {/* ← Đổi column headers */}
+            <th>Category</th>
+            <th>Field3</th>
+            <th>Price</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {entities && Array.isArray(entities) && entities.length > 0 ? (
+            entities.map((entity) => (
+              <tr key={entity.id || entity.entityId}>
+                <td>{entity.entityId || entity.id}</td>
+                <td>{entity.entityName}</td> {/* ← Đổi field names */}
+                <td>{entity.categoryName}</td>
+                <td>{entity.field3}</td>
+                <td>{entity.price}</td>
+                <td>
+                  <a
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate(
+                        `/delete/${entity.id || entity.entityId}`,
+                      ); /* ← Đổi path */
+                    }}
                   >
-                    {category.categoryName}
-                  </option>
-                ))}
-            </Form.Select>
-          </Col>
-        </Row>
-
-        {/* ===== FILTER: Search + Buttons ===== */}
-        <Row className="align-items-center mb-5">
-          <Col md={2} className="text-end">
-            <label className="fw-semibold">Entity Name:</label>{" "}
-            {/* ← Đổi label */}
-          </Col>
-
-          <Col md={5}>
-            <Form.Control
-              type="text"
-              value={searchName}
-              onChange={(e) => setSearchName(e.target.value)}
-              placeholder="Search by name"
-            />
-          </Col>
-
-          <Col md={2}>
-            <Button
-              variant="outline-primary"
-              className="w-100 fw-bold"
-              onClick={handleFilter}
-            >
-              Filter
-            </Button>
-          </Col>
-
-          <Col md={2}>
-            <Button
-              variant="outline-primary"
-              className="w-100 fw-bold"
-              onClick={() => navigate("/create")}
-            >
-              Add New
-            </Button>
-          </Col>
-        </Row>
-
-        {/* ===== TABLE ===== */}
-        <Row>
-          <Col>
-            <h4 className="fw-bold">Entity List</h4>
-          </Col>{" "}
-          {/* ← Đổi title */}
-        </Row>
-
-        <Table bordered hover>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Name</th> {/* ← Đổi column headers */}
-              <th>Category</th>
-              <th>Field3</th>
-              <th>Price</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {entities && Array.isArray(entities) && entities.length > 0 ? (
-              entities.map((entity) => (
-                <tr key={entity.id || entity.entityId}>
-                  <td>{entity.entityId || entity.id}</td>
-                  <td>{entity.entityName}</td> {/* ← Đổi field names */}
-                  <td>{entity.categoryName}</td>
-                  <td>{entity.field3}</td>
-                  <td>{entity.price}</td>
-                  <td>
-                    <a
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleOpenDeleteModal(entity);
-                      }}
-                    >
-                      Delete
-                    </a>
-                    {" | "}
-                    <a
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        navigate(`/detail/${restaurant.restaurantId}`);
-                      }}
-                    >
-                      View
-                    </a>
-                    {" | "}
-                    <a
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleOpenEditModal(entity.id || entity.entityId);
-                      }}
-                    >
-                      Edit
-                    </a>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="6" className="text-center">
-                  No data found
+                    Delete
+                  </a>
+                  {" | "}
+                  <a
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate(
+                        `/detail/${entity.id || entity.entityId}`,
+                      ); /* ← Đổi path */
+                    }}
+                  >
+                    View
+                  </a>
+                  {" | "}
+                  <a
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate(
+                        `/edit/${entity.id || entity.entityId}`,
+                      ); /* ← Đổi path */
+                    }}
+                  >
+                    Edit
+                  </a>
                 </td>
               </tr>
-            )}
-          </tbody>
-        </Table>
-      </Container>
-
-      {/* ===== VIEW DETAIL MODAL ===== */}
-      <Modal
-        show={showViewModal}
-        onHide={() => setShowViewModal(false)}
-        centered
-      >
-        <Modal.Body className="px-4 py-4">
-          {selectedEntity && (
-            <div className="text-center">
-              <h4 className="fw-bold text-uppercase mb-4">View Details</h4>
-
-              <div className="mx-auto" style={{ maxWidth: "360px" }}>
-                <div className="d-flex justify-content-between mb-2">
-                  <span className="fw-semibold">Name:</span>
-                  <span>{selectedEntity.entityName}</span> {/* ← Đổi fields */}
-                </div>
-                <div className="d-flex justify-content-between mb-2">
-                  <span className="fw-semibold">Category:</span>
-                  <span>
-                    {selectedEntity.categoryName ||
-                      selectedEntity.category?.categoryName ||
-                      ""}
-                  </span>
-                </div>
-                <div className="d-flex justify-content-between mb-2">
-                  <span className="fw-semibold">Field3:</span>
-                  <span>{selectedEntity.field3}</span>
-                </div>
-                <div className="d-flex justify-content-between mb-2">
-                  <span className="fw-semibold">Price:</span>
-                  <span>{selectedEntity.price}</span>
-                </div>
-                <div className="d-flex justify-content-between mb-2">
-                  <span className="fw-semibold">Date 1:</span>
-                  <span>{formatDate(selectedEntity.date1)}</span>
-                </div>
-                <div className="d-flex justify-content-between mb-3">
-                  <span className="fw-semibold">Date 2:</span>
-                  <span>{formatDate(selectedEntity.date2)}</span>
-                </div>
-              </div>
-
-              <Button
-                variant="outline-primary"
-                className="px-5 fw-bold"
-                onClick={() => setShowViewModal(false)}
-              >
-                Quay Lai
-              </Button>
-            </div>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="6" className="text-center">
+                No data found
+              </td>
+            </tr>
           )}
-        </Modal.Body>
-      </Modal>
-
-      {/* ===== DELETE CONFIRMATION MODAL ===== */}
-      <Modal show={showDeleteModal} onHide={handleCloseDeleteModal} centered>
-        <Modal.Body className="text-center py-4">
-          <h4 className="fw-bold mb-4">Confirmation</h4>
-          <p className="mb-4 fs-5">
-            Are you sure you want to delete "{entityToDelete?.entityName || ""}
-            "?
-          </p>
-          <div className="d-flex justify-content-center gap-4">
-            <Button
-              variant="secondary"
-              className="px-5"
-              onClick={handleConfirmDelete}
-            >
-              Yes
-            </Button>
-            <Button
-              variant="outline-secondary"
-              className="px-5"
-              onClick={handleCloseDeleteModal}
-            >
-              Close
-            </Button>
-          </div>
-        </Modal.Body>
-      </Modal>
-
-      {/* ===== CREATE / EDIT MODAL ===== */}
-      <Modal show={showFormModal} onHide={handleCloseFormModal} centered>
-        <Modal.Body className="px-4 py-4">
-          <h4 className="fw-bold text-center text-uppercase mb-4">
-            {editingEntity ? "Edit Entity" : "Create New Entity"}{" "}
-            {/* ← Đổi title */}
-          </h4>
-
-          <Form>
-            {/* Field: Name */}
-            <Form.Group className="mb-3">
-              <Form.Label className="fw-semibold">Entity Name</Form.Label>{" "}
-              {/* ← Đổi label */}
-              <Form.Control
-                type="text"
-                name="entityName"
-                value={formData.entityName}
-                onChange={handleFormChange}
-                isInvalid={!!formErrors.entityName}
-              />
-              <Form.Control.Feedback type="invalid">
-                {formErrors.entityName}
-              </Form.Control.Feedback>
-            </Form.Group>
-
-            {/* Field: Category (Dropdown) */}
-            <Form.Group className="mb-3">
-              <Form.Label className="fw-semibold">Category</Form.Label>
-              <Form.Select
-                name="categoryId"
-                value={formData.categoryId}
-                onChange={handleFormChange}
-                isInvalid={!!formErrors.categoryId}
-              >
-                <option value="">-- Select Category --</option>
-                {categories.map((cat, i) => (
-                  <option
-                    key={cat.id || cat.categoryId || i}
-                    value={cat.id || cat.categoryId}
-                  >
-                    {cat.categoryName}
-                  </option>
-                ))}
-              </Form.Select>
-              <Form.Control.Feedback type="invalid">
-                {formErrors.categoryId}
-              </Form.Control.Feedback>
-            </Form.Group>
-
-            {/* Field: Field3 (Text) */}
-            <Form.Group className="mb-3">
-              <Form.Label className="fw-semibold">Field3</Form.Label>{" "}
-              {/* ← Đổi label */}
-              <Form.Control
-                type="text"
-                name="field3"
-                value={formData.field3}
-                onChange={handleFormChange}
-              />
-            </Form.Group>
-
-            {/* Field: Price (Number) */}
-            <Form.Group className="mb-3">
-              <Form.Label className="fw-semibold">Price</Form.Label>
-              <Form.Control
-                type="number"
-                name="price"
-                value={formData.price}
-                onChange={handleFormChange}
-                isInvalid={!!formErrors.price}
-              />
-              <Form.Control.Feedback type="invalid">
-                {formErrors.price}
-              </Form.Control.Feedback>
-            </Form.Group>
-
-            {/* Field: Date (nếu cần) */}
-            {/*
-                    <Form.Group className="mb-3">
-                        <Form.Label className="fw-semibold">Date</Form.Label>
-                        <Form.Control
-                            type="date"
-                            name="date1"
-                            value={formData.date1}
-                            onChange={handleFormChange}
-                        />
-                    </Form.Group>
-                    */}
-
-            <div className="d-flex justify-content-center gap-3 mt-4">
-              <Button
-                variant="primary"
-                className="px-4 fw-bold"
-                onClick={handleSubmitForm}
-              >
-                {editingEntity ? "Update" : "Create"}
-              </Button>
-              <Button
-                variant="outline-secondary"
-                className="px-4"
-                onClick={handleCloseFormModal}
-              >
-                Cancel
-              </Button>
-            </div>
-          </Form>
-        </Modal.Body>
-      </Modal>
-    </>
+        </tbody>
+      </Table>
+    </Container>
   );
 }
 
@@ -1569,16 +1260,16 @@ export default CreateEntity;
 
 #### 📋 Bảng chọn nhanh Parse + Format function theo format đề bài
 
-| Format đề bài | Separator | Parse function    | Format function    | Regex (validation-field.md) |
-| ---------------- | --------- | ----------------- | ------------------ | --------------------------- |
-| `dd/MM/yyyy`   | `/`     | `parseDMYSlash` | `formatDMYSlash` | Mục 24                     |
-| `dd-MM-yyyy`   | `-`     | `parseDMYDash`  | `formatDMYDash`  | Mục 24                     |
-| `MM/dd/yyyy`   | `/`     | `parseMDYSlash` | `formatMDYSlash` | Mục 23                     |
-| `MM-dd-yyyy`   | `-`     | `parseMDYDash`  | `formatMDYDash`  | Mục 23                     |
-| `yyyy/MM/dd`   | `/`     | `parseYMDSlash` | `formatYMDSlash` | Mục 21                     |
-| `yyyy-MM-dd`   | `-`     | `parseYMDDash`  | `formatYMDDash`  | Mục 21                     |
-| `yyyy/dd/MM`   | `/`     | _(xem mục 22)_ | _(custom)_       | Mục 22                     |
-| `yyyy-dd-MM`   | `-`     | _(xem mục 22)_ | _(custom)_       | Mục 22                     |
+| Format đề bài | Separator | Parse function  | Format function  | Regex (validation-field.md) |
+| ------------- | --------- | --------------- | ---------------- | --------------------------- |
+| `dd/MM/yyyy`  | `/`       | `parseDMYSlash` | `formatDMYSlash` | Mục 24                      |
+| `dd-MM-yyyy`  | `-`       | `parseDMYDash`  | `formatDMYDash`  | Mục 24                      |
+| `MM/dd/yyyy`  | `/`       | `parseMDYSlash` | `formatMDYSlash` | Mục 23                      |
+| `MM-dd-yyyy`  | `-`       | `parseMDYDash`  | `formatMDYDash`  | Mục 23                      |
+| `yyyy/MM/dd`  | `/`       | `parseYMDSlash` | `formatYMDSlash` | Mục 21                      |
+| `yyyy-MM-dd`  | `-`       | `parseYMDDash`  | `formatYMDDash`  | Mục 21                      |
+| `yyyy/dd/MM`  | `/`       | _(xem mục 22)_  | _(custom)_       | Mục 22                      |
+| `yyyy-dd-MM`  | `-`       | _(xem mục 22)_  | _(custom)_       | Mục 22                      |
 
 > **💡 Tip:** Copy parse + format function từ `validation-field.md` mục 25-26, chỉ copy function đúng format đề bài. Tra regex ở mục 21-24.
 
@@ -2238,21 +1929,21 @@ npm run dev
 
 ## 7. 📝 Checklist triển khai nhanh
 
-| #  | Bước                                 | File                                | Thời gian       |
-| -- | -------------------------------------- | ----------------------------------- | ---------------- |
-| 1  | Tạo project Vite React                | Terminal                            | 30s              |
-| 2  | Cài packages                          | Terminal                            | 30s              |
-| 3  | Tạo`.env`                           | `.env`                            | 10s              |
-| 4  | Sửa`index.css` thêm bootstrap      | `src/index.css`                   | 10s              |
-| 5  | Tạo`api.js` (copy template)         | `src/services/api.js`             | 15s              |
-| 6  | Tạo Service (copy & đổi tên)       | `src/services/EntityService.js`   | 1min             |
-| 7  | Tạo CategoryService (nếu cần)       | `src/services/CategoryService.js` | 30s              |
-| 8  | Tạo Header & Footer                   | `src/components/`                 | 1min             |
-| 9  | Tạo Page CRUD (copy template)         | `src/pages/EntityList.jsx`        | 3min             |
-| 10 | Sửa`main.jsx` (thêm BrowserRouter) | `src/main.jsx`                    | 30s              |
-| 11 | Sửa`App.jsx` (import + route)       | `src/App.jsx`                     | 30s              |
-| 12 | Test & chạy                           | `npm run dev`                     | 30s              |
-|    | **Tổng thời gian ước tính** |                                     | **~8 min** |
+| #   | Bước                               | File                              | Thời gian  |
+| --- | ---------------------------------- | --------------------------------- | ---------- |
+| 1   | Tạo project Vite React             | Terminal                          | 30s        |
+| 2   | Cài packages                       | Terminal                          | 30s        |
+| 3   | Tạo`.env`                          | `.env`                            | 10s        |
+| 4   | Sửa`index.css` thêm bootstrap      | `src/index.css`                   | 10s        |
+| 5   | Tạo`api.js` (copy template)        | `src/services/api.js`             | 15s        |
+| 6   | Tạo Service (copy & đổi tên)       | `src/services/EntityService.js`   | 1min       |
+| 7   | Tạo CategoryService (nếu cần)      | `src/services/CategoryService.js` | 30s        |
+| 8   | Tạo Header & Footer                | `src/components/`                 | 1min       |
+| 9   | Tạo Page CRUD (copy template)      | `src/pages/EntityList.jsx`        | 3min       |
+| 10  | Sửa`main.jsx` (thêm BrowserRouter) | `src/main.jsx`                    | 30s        |
+| 11  | Sửa`App.jsx` (import + route)      | `src/App.jsx`                     | 30s        |
+| 12  | Test & chạy                        | `npm run dev`                     | 30s        |
+|     | **Tổng thời gian ước tính**        |                                   | **~8 min** |
 
 ---
 
@@ -2404,25 +2095,25 @@ const searchEntities = (name, category) => {
 
 ## 9. ⚡ Bootstrap Class hay dùng
 
-| Class                                                               | Mô tả                            |
-| ------------------------------------------------------------------- | ---------------------------------- |
-| `container` / `container fluid`                                 | Container có padding / full width |
-| `px-3`, `py-4`, `mb-3`, `mt-4`                              | Padding/margin                     |
-| `text-start`, `text-end`, `text-center`                       | Căn chữ                          |
-| `fw-bold`, `fw-semibold`                                        | Font weight                        |
-| `border-bottom`, `border-top`, `border-dark`                  | Border                             |
-| `d-flex`, `justify-content-between`, `justify-content-center` | Flexbox                            |
-| `gap-3`, `gap-4`                                                | Gap giữa flex items               |
-| `w-100`                                                           | Width 100%                         |
-| `fs-5`                                                            | Font size                          |
-| `align-items-center`                                              | Căn giữa theo trục dọc         |
+| Class                                                         | Mô tả                             |
+| ------------------------------------------------------------- | --------------------------------- |
+| `container` / `container fluid`                               | Container có padding / full width |
+| `px-3`, `py-4`, `mb-3`, `mt-4`                                | Padding/margin                    |
+| `text-start`, `text-end`, `text-center`                       | Căn chữ                           |
+| `fw-bold`, `fw-semibold`                                      | Font weight                       |
+| `border-bottom`, `border-top`, `border-dark`                  | Border                            |
+| `d-flex`, `justify-content-between`, `justify-content-center` | Flexbox                           |
+| `gap-3`, `gap-4`                                              | Gap giữa flex items               |
+| `w-100`                                                       | Width 100%                        |
+| `fs-5`                                                        | Font size                         |
+| `align-items-center`                                          | Căn giữa theo trục dọc            |
 
 ---
 
 ## 10. 📋 React-Bootstrap Components hay dùng
 
-| Component                                                   | Import              | Dùng cho         |
-| ----------------------------------------------------------- | ------------------- | ----------------- |
+| Component                                                 | Import            | Dùng cho          |
+| --------------------------------------------------------- | ----------------- | ----------------- |
 | `Container, Row, Col`                                     | `react-bootstrap` | Layout grid       |
 | `Table`                                                   | `react-bootstrap` | Data table        |
 | `Button`                                                  | `react-bootstrap` | Buttons           |
