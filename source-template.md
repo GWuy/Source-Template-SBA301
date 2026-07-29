@@ -371,20 +371,26 @@ const getAllEntityList = () => {
   return api.get(BASE_URL);
 };
 
-// SEARCH / FILTER
+// SEARCH / FILTER (có phân trang)
 // Cách A: Truyền categoryId
-const searchEntities = (name, categoryId) => {
-  let url = `${BASE_URL}/search?`;
-  if (name) url += `name=${name}&`;
-  if (categoryId) url += `categoryId=${categoryId}&`;
+const searchEntities = (
+  name,
+  categoryId,
+  page = 0,
+  size = 10,
+  sortBy = "name",
+) => {
+  let url = `${BASE_URL}/search?page=${page}&size=${size}&sortBy=${sortBy}`;
+  if (name) url += `&name=${name}`;
+  if (categoryId) url += `&categoryId=${categoryId}`;
   return api.get(url);
 };
 
 // Cách B: Truyền categoryName (nếu backend nhận tên thay vì ID)
-// const searchEntities = (name, category) => {
-//   let url = `${BASE_URL}/search?`;
-//   if (name) url += `name=${name}&`;
-//   if (category) url += `category=${category}&`;
+// const searchEntities = (name, category, page = 0, size = 10, sortBy = "name") => {
+//   let url = `${BASE_URL}/search?page=${page}&size=${size}&sortBy=${sortBy}`;
+//   if (name) url += `&name=${name}`;
+//   if (category) url += `&category=${category}`;
 //   return api.get(url);
 // };
 
@@ -447,15 +453,24 @@ export const categoryService = {
 > 5. Thêm/bớt field trong table
 > 6. **Yêu cầu:** Đã có sẵn các trang riêng: `CreateEntity`, `EntityDetail`, `DeleteEntity` (hoặc `EditEntity`)
 > 7. **Filter:** Hỗ trợ filter theo `categoryId` (truyền trực tiếp ID, không cần convert sang tên)
-> 8. **Fetch Data:** Chọn Cách A hoặc B trong `fetchEntities`:
->    - **Cách A** (mặc định): Backend có API `GET /api/entities` → dùng `getAllEntityList()`
->    - **Cách B** (uncomment): Backend KHÔNG có `getAllEntityList`, chỉ có `search` → dùng `searchEntities("", "")` để load tất cả
+> 8. **Pagination:** Phân trang server-side, dùng `Pagination` component của React-Bootstrap
+>    - Backend trả về `PageDTO` / `Page<>` (Spring Boot) gồm: `content`, `totalPages`, `number`, `totalElements`
+>    - Default: 10 items/trang, sort by `name`. Đổi `pageSize` và `sortBy` nếu cần
+> 9. **Fetch Data:** `fetchEntities` luôn dùng `searchEntities()` với params trống để load tất cả (có phân trang)
 
 > **⚠️ Lưu ý:** Template này **KHÔNG dùng Modal**. Tất cả action (View, Delete, Edit, Create) đều navigate sang trang riêng.
 > Nếu cần dùng Modal, xem phiên bản cũ hoặc tự thêm lại.
 
 ```jsx
-import { Button, Col, Container, Form, Row, Table } from "react-bootstrap";
+import {
+  Button,
+  Col,
+  Container,
+  Form,
+  Pagination,
+  Row,
+  Table,
+} from "react-bootstrap";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { categoryService } from "../services/CategoryService.js";
@@ -471,30 +486,55 @@ function EntityList() {
   const [searchName, setSearchName] = useState("");
   const [searchCategory, setSearchCategory] = useState(""); // categoryId
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(0); // 0-based (theo Spring Boot)
+  const [totalPages, setTotalPages] = useState(0);
+  const [pageSize] = useState(10); // ← Đổi số lượng item/trang nếu cần
+
   // ========== FETCH DATA ==========
   // ✅ Cách A: Có API getAllEntityList() — Dùng khi backend có endpoint GET /api/entities
-  const fetchEntities = useCallback(async () => {
-    try {
-      const response = await entityService.getAllEntityList();
-      setEntities(response.data.content || response.data || []);
-    } catch (error) {
-      console.error("Error fetching entities:", error);
-      setEntities([]);
-    }
-  }, []);
+  // Load trang đầu bằng getAllEntityList, các trang sau dùng searchEntities
+  const fetchEntities = useCallback(
+    async (page = 0) => {
+      try {
+        const response = await entityService.searchEntities(
+          searchName || "",
+          searchCategory || "",
+          page,
+          pageSize,
+        );
+        const data = response.data;
+        setEntities(data.content || data || []);
+        setTotalPages(data.totalPages || 0);
+        setCurrentPage(data.number ?? page);
+      } catch (error) {
+        console.error("Error fetching entities:", error);
+        setEntities([]);
+        setTotalPages(0);
+      }
+    },
+    [searchName, searchCategory, pageSize],
+  );
 
   /*
   // ✅ Cách B: KHÔNG có API getAllEntityList() — Dùng searchEntities("", "") để load tất cả
   // Khi backend KHÔNG có endpoint GET /api/entities, chỉ có GET /api/entities/search
-  const fetchEntities = useCallback(async () => {
-    try {
-      const response = await entityService.searchEntities("", "");
-      setEntities(response.data.content || response.data || []);
-    } catch (error) {
-      console.error("Error fetching entities:", error);
-      setEntities([]);
-    }
-  }, []);
+  const fetchEntities = useCallback(
+    async (page = 0) => {
+      try {
+        const response = await entityService.searchEntities("", "", page, pageSize);
+        const data = response.data;
+        setEntities(data.content || data || []);
+        setTotalPages(data.totalPages || 0);
+        setCurrentPage(data.number ?? page);
+      } catch (error) {
+        console.error("Error fetching entities:", error);
+        setEntities([]);
+        setTotalPages(0);
+      }
+    },
+    [pageSize],
+  );
   */
 
   useEffect(() => {
@@ -508,27 +548,28 @@ function EntityList() {
       }
     };
     fetchCategories();
-    fetchEntities();
+    fetchEntities(0);
   }, [fetchEntities]);
 
   // ========== FILTER / SEARCH ==========
   // Cách A: Filter bằng categoryId (truyền ID trực tiếp)
-  // Khi KHÔNG có filter → gọi fetchEntities() (dùng getAllEntityList hoặc searchEntities tùy Cách A/B ở trên)
+  // Khi bấm Filter → reset về trang 0
   const handleFilter = async () => {
     try {
-      if (!searchName && !searchCategory) {
-        fetchEntities();
-        return;
-      }
-
       const response = await entityService.searchEntities(
         searchName,
         searchCategory, // ← Truyền categoryId trực tiếp
+        0, // ← Reset về trang đầu khi filter
+        pageSize,
       );
-      setEntities(response.data.content || response.data || []);
+      const data = response.data;
+      setEntities(data.content || data || []);
+      setTotalPages(data.totalPages || 0);
+      setCurrentPage(data.number ?? 0);
     } catch (error) {
       console.error("Error filtering:", error);
       setEntities([]);
+      setTotalPages(0);
     }
   };
 
@@ -547,22 +588,29 @@ function EntityList() {
         if (cat) categoryName = cat.categoryName;
       }
 
-      if (!searchName && !categoryName) {
-        fetchEntities();
-        return;
-      }
-
       const response = await entityService.searchEntities(
         searchName,
         categoryName,
+        0,
+        pageSize,
       );
-      setEntities(response.data.content || response.data || []);
+      const data = response.data;
+      setEntities(data.content || data || []);
+      setTotalPages(data.totalPages || 0);
+      setCurrentPage(data.number ?? 0);
     } catch (error) {
       console.error("Error filtering:", error);
       setEntities([]);
+      setTotalPages(0);
     }
   };
   */
+
+  // ========== PAGINATION ==========
+  const handlePageChange = (page) => {
+    if (page < 0 || page >= totalPages) return;
+    fetchEntities(page);
+  };
 
   // ========== UTILS ==========
   const formatDate = (dateString) => {
@@ -720,6 +768,41 @@ function EntityList() {
           )}
         </tbody>
       </Table>
+
+      {/* ===== PAGINATION ===== */}
+      {totalPages > 1 && (
+        <div className="d-flex justify-content-center mt-3">
+          <Pagination>
+            <Pagination.First
+              onClick={() => handlePageChange(0)}
+              disabled={currentPage === 0}
+            />
+            <Pagination.Prev
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 0}
+            />
+
+            {[...Array(totalPages)].map((_, index) => (
+              <Pagination.Item
+                key={index}
+                active={index === currentPage}
+                onClick={() => handlePageChange(index)}
+              >
+                {index + 1}
+              </Pagination.Item>
+            ))}
+
+            <Pagination.Next
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages - 1}
+            />
+            <Pagination.Last
+              onClick={() => handlePageChange(totalPages - 1)}
+              disabled={currentPage === totalPages - 1}
+            />
+          </Pagination>
+        </div>
+      )}
     </Container>
   );
 }
