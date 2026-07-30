@@ -935,6 +935,7 @@ function CreateEntity() {
     return (
         <Container>
             <Row className="mb-4 mt-5">
+              	<h3 className="fw-bold text-uppercase">Create New Entity</h3>
                 <Col md={{span: 8, offset: 2}}>
 
 
@@ -1366,16 +1367,16 @@ export default CreateEntity;
 
 #### 📋 Bảng chọn nhanh Parse + Format function theo format đề bài
 
-| Format đề bài | Separator | Parse function  | Format function  | Regex (validation-field.md) |
-| ------------- | --------- | --------------- | ---------------- | --------------------------- |
-| `dd/MM/yyyy`  | `/`       | `parseDMYSlash` | `formatDMYSlash` | Mục 24                      |
-| `dd-MM-yyyy`  | `-`       | `parseDMYDash`  | `formatDMYDash`  | Mục 24                      |
-| `MM/dd/yyyy`  | `/`       | `parseMDYSlash` | `formatMDYSlash` | Mục 23                      |
-| `MM-dd-yyyy`  | `-`       | `parseMDYDash`  | `formatMDYDash`  | Mục 23                      |
-| `yyyy/MM/dd`  | `/`       | `parseYMDSlash` | `formatYMDSlash` | Mục 21                      |
-| `yyyy-MM-dd`  | `-`       | `parseYMDDash`  | `formatYMDDash`  | Mục 21                      |
-| `yyyy/dd/MM`  | `/`       | _(xem mục 22)_  | _(custom)_       | Mục 22                      |
-| `yyyy-dd-MM`  | `-`       | _(xem mục 22)_  | _(custom)_       | Mục 22                      |
+| Format đề bài | Separator | Parse function    | Format function    | Regex (validation-field.md) |
+| ---------------- | --------- | ----------------- | ------------------ | --------------------------- |
+| `dd/MM/yyyy`   | `/`     | `parseDMYSlash` | `formatDMYSlash` | Mục 24                     |
+| `dd-MM-yyyy`   | `-`     | `parseDMYDash`  | `formatDMYDash`  | Mục 24                     |
+| `MM/dd/yyyy`   | `/`     | `parseMDYSlash` | `formatMDYSlash` | Mục 23                     |
+| `MM-dd-yyyy`   | `-`     | `parseMDYDash`  | `formatMDYDash`  | Mục 23                     |
+| `yyyy/MM/dd`   | `/`     | `parseYMDSlash` | `formatYMDSlash` | Mục 21                     |
+| `yyyy-MM-dd`   | `-`     | `parseYMDDash`  | `formatYMDDash`  | Mục 21                     |
+| `yyyy/dd/MM`   | `/`     | _(xem mục 22)_ | _(custom)_       | Mục 22                     |
+| `yyyy-dd-MM`   | `-`     | _(xem mục 22)_ | _(custom)_       | Mục 22                     |
 
 > **💡 Tip:** Copy parse + format function từ `validation-field.md` mục 25-26, chỉ copy function đúng format đề bài. Tra regex ở mục 21-24.
 
@@ -2035,21 +2036,21 @@ npm run dev
 
 ## 7. 📝 Checklist triển khai nhanh
 
-| #   | Bước                               | File                              | Thời gian  |
-| --- | ---------------------------------- | --------------------------------- | ---------- |
-| 1   | Tạo project Vite React             | Terminal                          | 30s        |
-| 2   | Cài packages                       | Terminal                          | 30s        |
-| 3   | Tạo`.env`                          | `.env`                            | 10s        |
-| 4   | Sửa`index.css` thêm bootstrap      | `src/index.css`                   | 10s        |
-| 5   | Tạo`api.js` (copy template)        | `src/services/api.js`             | 15s        |
-| 6   | Tạo Service (copy & đổi tên)       | `src/services/EntityService.js`   | 1min       |
-| 7   | Tạo CategoryService (nếu cần)      | `src/services/CategoryService.js` | 30s        |
-| 8   | Tạo Header & Footer                | `src/components/`                 | 1min       |
-| 9   | Tạo Page CRUD (copy template)      | `src/pages/EntityList.jsx`        | 3min       |
-| 10  | Sửa`main.jsx` (thêm BrowserRouter) | `src/main.jsx`                    | 30s        |
-| 11  | Sửa`App.jsx` (import + route)      | `src/App.jsx`                     | 30s        |
-| 12  | Test & chạy                        | `npm run dev`                     | 30s        |
-|     | **Tổng thời gian ước tính**        |                                   | **~8 min** |
+| #  | Bước                                 | File                                | Thời gian       |
+| -- | -------------------------------------- | ----------------------------------- | ---------------- |
+| 1  | Tạo project Vite React                | Terminal                            | 30s              |
+| 2  | Cài packages                          | Terminal                            | 30s              |
+| 3  | Tạo`.env`                           | `.env`                            | 10s              |
+| 4  | Sửa`index.css` thêm bootstrap      | `src/index.css`                   | 10s              |
+| 5  | Tạo`api.js` (copy template)         | `src/services/api.js`             | 15s              |
+| 6  | Tạo Service (copy & đổi tên)       | `src/services/EntityService.js`   | 1min             |
+| 7  | Tạo CategoryService (nếu cần)       | `src/services/CategoryService.js` | 30s              |
+| 8  | Tạo Header & Footer                   | `src/components/`                 | 1min             |
+| 9  | Tạo Page CRUD (copy template)         | `src/pages/EntityList.jsx`        | 3min             |
+| 10 | Sửa`main.jsx` (thêm BrowserRouter) | `src/main.jsx`                    | 30s              |
+| 11 | Sửa`App.jsx` (import + route)       | `src/App.jsx`                     | 30s              |
+| 12 | Test & chạy                           | `npm run dev`                     | 30s              |
+|    | **Tổng thời gian ước tính** |                                     | **~8 min** |
 
 ---
 
@@ -2201,25 +2202,25 @@ const searchEntities = (name, category) => {
 
 ## 9. ⚡ Bootstrap Class hay dùng
 
-| Class                                                         | Mô tả                             |
-| ------------------------------------------------------------- | --------------------------------- |
-| `container` / `container fluid`                               | Container có padding / full width |
-| `px-3`, `py-4`, `mb-3`, `mt-4`                                | Padding/margin                    |
-| `text-start`, `text-end`, `text-center`                       | Căn chữ                           |
-| `fw-bold`, `fw-semibold`                                      | Font weight                       |
-| `border-bottom`, `border-top`, `border-dark`                  | Border                            |
-| `d-flex`, `justify-content-between`, `justify-content-center` | Flexbox                           |
-| `gap-3`, `gap-4`                                              | Gap giữa flex items               |
-| `w-100`                                                       | Width 100%                        |
-| `fs-5`                                                        | Font size                         |
-| `align-items-center`                                          | Căn giữa theo trục dọc            |
+| Class                                                               | Mô tả                            |
+| ------------------------------------------------------------------- | ---------------------------------- |
+| `container` / `container fluid`                                 | Container có padding / full width |
+| `px-3`, `py-4`, `mb-3`, `mt-4`                              | Padding/margin                     |
+| `text-start`, `text-end`, `text-center`                       | Căn chữ                          |
+| `fw-bold`, `fw-semibold`                                        | Font weight                        |
+| `border-bottom`, `border-top`, `border-dark`                  | Border                             |
+| `d-flex`, `justify-content-between`, `justify-content-center` | Flexbox                            |
+| `gap-3`, `gap-4`                                                | Gap giữa flex items               |
+| `w-100`                                                           | Width 100%                         |
+| `fs-5`                                                            | Font size                          |
+| `align-items-center`                                              | Căn giữa theo trục dọc         |
 
 ---
 
 ## 10. 📋 React-Bootstrap Components hay dùng
 
-| Component                                                 | Import            | Dùng cho          |
-| --------------------------------------------------------- | ----------------- | ----------------- |
+| Component                                                   | Import              | Dùng cho         |
+| ----------------------------------------------------------- | ------------------- | ----------------- |
 | `Container, Row, Col`                                     | `react-bootstrap` | Layout grid       |
 | `Table`                                                   | `react-bootstrap` | Data table        |
 | `Button`                                                  | `react-bootstrap` | Buttons           |
