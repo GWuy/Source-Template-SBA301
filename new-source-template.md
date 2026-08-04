@@ -169,6 +169,7 @@ createRoot(document.getElementById("root")).render(
 ### `src/layouts/AppLayout.css`
 
 > **⚠️ Mã màu mặc định dùng trong template này:**
+>
 > - Header/Table header background: `#2c3e6b` (navy blue đậm)
 > - Header/Table header text: `#ffffff` (trắng)
 > - Body background: `#f5f5f5` (xám nhạt)
@@ -651,7 +652,7 @@ export default Header;
 function Footer() {
   return (
     <div className="app-footer">
-      &copy; 2026 FU University
+      © 2026 FU University
     </div>
   );
 }
@@ -778,6 +779,7 @@ export const categoryService = {
 > 8. **Delete:** Có 2 cách — popup Modal hoặc navigate sang trang riêng (xem bên dưới)
 
 > **⚠️ Lưu ý:** Template này hỗ trợ **CẢ HAI** cách delete:
+>
 > - **Popup Modal:** Dùng `handleOpenDeleteModal()` (mặc định)
 > - **Page riêng:** Dùng `navigate('/delete/...')` (comment sẵn)
 
@@ -785,6 +787,7 @@ export const categoryService = {
 
 ```jsx
 import {
+  Alert,
   Button,
   Col,
   Container,
@@ -825,6 +828,9 @@ function EntityList() {
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [pageSize] = useState(5); // ← 5 items/trang (theo hình)
+
+  // Success message state
+  const [successMessage, setSuccessMessage] = useState("");
 
   // Delete Modal states
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -916,6 +922,7 @@ function EntityList() {
       );
       handleCloseDeleteModal();
       fetchEntities(currentPage); // Reload trang hiện tại
+      setSuccessMessage("Deleted successfully!");
     } catch (error) {
       console.error("Error deleting:", error);
       alert("Failed to delete");
@@ -925,6 +932,17 @@ function EntityList() {
   // ========== RENDER ==========
   return (
     <Container fluid className="px-0">
+      {/* ===== SUCCESS MESSAGE ===== */}
+      {successMessage && (
+        <Alert
+          variant="success"
+          dismissible
+          onClose={() => setSuccessMessage("")}
+        >
+          {successMessage}
+        </Alert>
+      )}
+
       {/* ===== TITLE ===== */}
       <h4 className="page-title">Employee List</h4> {/* ← Đổi title */}
 
@@ -1079,7 +1097,7 @@ function EntityList() {
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 0}
             >
-              &lt;
+              <
             </Pagination.Prev>
 
             {[...Array(totalPages || 1)].map((_, index) => (
@@ -1096,7 +1114,7 @@ function EntityList() {
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage >= totalPages - 1 || totalPages === 0}
             >
-              &gt;
+              >
             </Pagination.Next>
           </Pagination>
         </Col>
@@ -1173,6 +1191,7 @@ export default EntityList;
 > 5. **Layout form:** 2 cột (theo hình — Email/Phone, Department/Position, DOB/StartDate cùng 1 row)
 
 > **⚠️ Theo hình:** Form có:
+>
 > - Full Name (full width)
 > - Email + Phone (2 cột)
 > - Department (dropdown) + Position (2 cột)
@@ -1700,6 +1719,7 @@ export default DetailEntity;
 
 > **Code đã được tích hợp sẵn trong `EntityList.jsx` Cách A ở trên.**
 > Bao gồm:
+>
 > - State: `showDeleteModal`, `entityToDelete`
 > - Handlers: `handleOpenDeleteModal`, `handleCloseDeleteModal`, `handleConfirmDelete`
 > - JSX: `<Modal>` component ở cuối return
@@ -1899,25 +1919,25 @@ npm run dev
 
 ## 7. 📝 Checklist triển khai nhanh
 
-| #  | Bước                                 | File                                | Thời gian       |
-| -- | -------------------------------------- | ----------------------------------- | ---------------- |
-| 1  | Tạo project Vite React                | Terminal                            | 30s              |
-| 2  | Cài packages                          | Terminal                            | 30s              |
-| 3  | Tạo`.env`                           | `.env`                            | 10s              |
-| 4  | Sửa`index.css` thêm bootstrap      | `src/index.css`                   | 10s              |
-| 5  | Tạo`api.js` (copy template)         | `src/services/api.js`             | 15s              |
-| 6  | Tạo Service (copy & đổi tên)       | `src/services/EntityService.js`   | 1min             |
-| 7  | Tạo CategoryService (nếu cần)       | `src/services/CategoryService.js` | 30s              |
-| 8  | Tạo AppLayout.css (copy styles)      | `src/layouts/AppLayout.css`       | 30s              |
-| 9  | Tạo AppLayout.jsx                     | `src/layouts/AppLayout.jsx`       | 15s              |
-| 10 | Tạo Header & Footer                   | `src/components/`                 | 1min             |
-| 11 | Tạo Page CRUD (copy template)         | `src/pages/EntityList.jsx`        | 3min             |
-| 12 | Tạo CreateEntity (copy template)      | `src/pages/CreateEntity.jsx`      | 2min             |
-| 13 | Tạo DetailEntity (copy template)      | `src/pages/DetailEntity.jsx`      | 1min             |
-| 14 | Tạo DeleteEntity (nếu dùng Page)     | `src/pages/DeleteEntity.jsx`      | 1min             |
-| 15 | Sửa`main.jsx` (thêm BrowserRouter) | `src/main.jsx`                    | 30s              |
-| 16 | Sửa`App.jsx` (import + route)       | `src/App.jsx`                     | 30s              |
-| 17 | Test & chạy                           | `npm run dev`                     | 30s              |
+| #  | Bước                                 | File                                | Thời gian        |
+| -- | -------------------------------------- | ----------------------------------- | ----------------- |
+| 1  | Tạo project Vite React                | Terminal                            | 30s               |
+| 2  | Cài packages                          | Terminal                            | 30s               |
+| 3  | Tạo`.env`                           | `.env`                            | 10s               |
+| 4  | Sửa`index.css` thêm bootstrap      | `src/index.css`                   | 10s               |
+| 5  | Tạo`api.js` (copy template)         | `src/services/api.js`             | 15s               |
+| 6  | Tạo Service (copy & đổi tên)       | `src/services/EntityService.js`   | 1min              |
+| 7  | Tạo CategoryService (nếu cần)       | `src/services/CategoryService.js` | 30s               |
+| 8  | Tạo AppLayout.css (copy styles)       | `src/layouts/AppLayout.css`       | 30s               |
+| 9  | Tạo AppLayout.jsx                     | `src/layouts/AppLayout.jsx`       | 15s               |
+| 10 | Tạo Header & Footer                   | `src/components/`                 | 1min              |
+| 11 | Tạo Page CRUD (copy template)         | `src/pages/EntityList.jsx`        | 3min              |
+| 12 | Tạo CreateEntity (copy template)      | `src/pages/CreateEntity.jsx`      | 2min              |
+| 13 | Tạo DetailEntity (copy template)      | `src/pages/DetailEntity.jsx`      | 1min              |
+| 14 | Tạo DeleteEntity (nếu dùng Page)    | `src/pages/DeleteEntity.jsx`      | 1min              |
+| 15 | Sửa`main.jsx` (thêm BrowserRouter) | `src/main.jsx`                    | 30s               |
+| 16 | Sửa`App.jsx` (import + route)       | `src/App.jsx`                     | 30s               |
+| 17 | Test & chạy                           | `npm run dev`                     | 30s               |
 |    | **Tổng thời gian ước tính** |                                     | **~12 min** |
 
 ---
@@ -2090,8 +2110,8 @@ const searchEntities = (name, category) => {
 | `Table`                                                   | `react-bootstrap` | Data table             |
 | `Button`                                                  | `react-bootstrap` | Buttons                |
 | `Form, Form.Control, Form.Select, Form.Group, Form.Label` | `react-bootstrap` | Form inputs            |
-| `Modal, Modal.Header, Modal.Body, Modal.Footer`          | `react-bootstrap` | Delete popup modals    |
-| `Pagination`                                              | `react-bootstrap` | Phân trang             |
+| `Modal, Modal.Header, Modal.Body, Modal.Footer`           | `react-bootstrap` | Delete popup modals    |
+| `Pagination`                                              | `react-bootstrap` | Phân trang            |
 | `Form.Control.Feedback`                                   | `react-bootstrap` | Validation errors      |
 | `Alert`                                                   | `react-bootstrap` | Success/error messages |
 
